@@ -1,50 +1,50 @@
-# Welcome to your Expo app 👋
+# CampusDrops
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+CampusDrops is a campus‑focused discovery app for student orgs and local businesses. It helps students find pop‑ups, events, and limited‑time drops, with save and check‑in features inspired by Beli.
 
-## Get started
+## Features
+- Email/password auth (Supabase)
+- Upcoming feed with past‑events history
+- Save + Check‑in actions
+- “My Stuff” tab for saved and checked‑in drops
+- Drop details screen with counts
+- “Near me” sorting using device location
 
+## Tech Stack
+- Expo + React Native + TypeScript
+- Expo Router (file‑based routing)
+- Supabase (auth + database)
+
+## Getting Started
 1. Install dependencies
+   - `npm install`
+2. Create `.env`
+   - `EXPO_PUBLIC_SUPABASE_URL=...`
+   - `EXPO_PUBLIC_SUPABASE_ANON_KEY=...`
+3. Install location module
+   - `npx expo install expo-location`
+4. Start the app
+   - `npm start`
 
-   ```bash
-   npm install
-   ```
+## Useful Commands
+- `npm start` start Expo dev server
+- `npm run ios` run iOS simulator
+- `npm run android` run Android emulator
+- `npm run web` run web
+- `npm run lint` lint
 
-2. Start the app
+## Supabase Tables
+- `drops` events/pop‑ups
+- `saves` “want to go”
+- `checkins` “I went”
+- `profiles` usernames / display names
 
-   ```bash
-   npx expo start
-   ```
+## Roadmap
+- Org/business profiles + verification
+- Drop photos + comments
+- Map view + filters
+- Server‑side “near me” queries
+- Notifications for saved drops
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Notes
+- “Near me” sorting is client‑side for now. A server‑side geo query can be swapped in later via `lib/drops.ts`.
