@@ -1,14 +1,21 @@
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useEffect, useState } from "react";
-import { Button, FlatList, Pressable, Text, View } from "react-native";
+import { Button, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { AuthGate } from "../../components/AuthGate";
 import { supabase } from "../../lib/supabase";
 import { fetchDrops, Drop, distanceMeters } from "../../lib/drops";
 import * as Location from "expo-location";
 import { router } from "expo-router";
+import { Colors, Fonts } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useCampusTheme } from "@/components/CampusThemeProvider";
 
 
 export default function Home() {
+  const colorScheme = useColorScheme();
+  const palette = Colors[colorScheme ?? "light"];
+  const { theme } = useCampusTheme();
+  const backgroundStyle = { backgroundColor: colorScheme === "dark" ? theme.bgDark : theme.bg };
   const [drops, setDrops] = useState<Drop[]>([]);
   const [pastDrops, setPastDrops] = useState<Drop[]>([]);
   const [status, setStatus] = useState<string>("");
@@ -195,38 +202,50 @@ export default function Home() {
 
   return (
     <AuthGate>
-      <View style={{ flex: 1, padding: 16, gap: 12 }}>
-        <Text style={{ fontSize: 28, fontWeight: "700" }}>
+      <View style={[styles.container, backgroundStyle]}>
+        <Text style={[styles.title, { color: palette.text }]}>
           {sortMode === "nearby" ? "Near me" : "Upcoming"}
         </Text>
-        <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={styles.pillRow}>
           <Pressable
             onPress={setUpcomingMode}
-            style={{
-              paddingVertical: 6,
-              paddingHorizontal: 12,
-              borderWidth: 1,
-              borderRadius: 999,
-              backgroundColor: sortMode === "upcoming" ? "#0a7ea4" : "transparent",
-            }}>
-            <Text style={{ color: sortMode === "upcoming" ? "#fff" : "#0a7ea4" }}>
+            style={[
+              styles.pill,
+              styles.pillOutline,
+              { borderColor: theme.accent },
+              sortMode === "upcoming" ? [styles.pillActive, { backgroundColor: theme.accent }] : null,
+            ]}>
+            <Text
+              style={
+                sortMode === "upcoming"
+                  ? styles.pillActiveText
+                  : [styles.pillText, { color: theme.pillText }]
+              }>
               Upcoming
             </Text>
           </Pressable>
           <Pressable
             onPress={setNearbyMode}
-            style={{
-              paddingVertical: 6,
-              paddingHorizontal: 12,
-              borderWidth: 1,
-              borderRadius: 999,
-              backgroundColor: sortMode === "nearby" ? "#0a7ea4" : "transparent",
-            }}>
-            <Text style={{ color: sortMode === "nearby" ? "#fff" : "#0a7ea4" }}>Near me</Text>
+            style={[
+              styles.pill,
+              styles.pillOutline,
+              { borderColor: theme.accent },
+              sortMode === "nearby" ? [styles.pillActive, { backgroundColor: theme.accent }] : null,
+            ]}>
+            <Text
+              style={
+                sortMode === "nearby"
+                  ? styles.pillActiveText
+                  : [styles.pillText, { color: theme.pillText }]
+              }>
+              Near me
+            </Text>
           </Pressable>
         </View>
         {sortMode === "nearby" && coords ? (
-          <Text style={{ opacity: 0.7 }}>Sorted by distance from you</Text>
+          <Text style={[styles.subtle, { color: theme.muted }]}>
+            Sorted by distance from you
+          </Text>
         ) : null}
         {!!status && <Text>{status}</Text>}
 
@@ -244,7 +263,7 @@ export default function Home() {
           renderItem={({ item }) => {
             if (item.id === "__past__") {
               return (
-                <Text style={{ fontSize: 24, fontWeight: "700", marginTop: 8 }}>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>
                   Past events
                 </Text>
               );
@@ -252,7 +271,7 @@ export default function Home() {
             if (item.id === "__past_more__") {
               return (
                 <Pressable onPress={() => setShowAllPast((prev) => !prev)}>
-                  <Text style={{ color: "#0a7ea4", fontWeight: "600" }}>
+                  <Text style={{ color: theme.accent, fontWeight: "600" }}>
                     {showAllPast ? "Show less" : "Show more"}
                   </Text>
                 </Pressable>
@@ -275,22 +294,26 @@ export default function Home() {
             return (
               <Pressable
                 onPress={() => router.push(`/drop/${drop.id}`)}
-                style={{
-                  padding: 14,
-                  borderWidth: 1,
-                  borderRadius: 12,
-                  opacity: isPast ? 0.6 : 1,
-                }}>
-                <Text style={{ fontSize: 18, fontWeight: "600" }}>{drop.title}</Text>
+                style={[
+                  styles.card,
+                  {
+                    opacity: isPast ? 0.6 : 1,
+                    borderColor: theme.border,
+                    backgroundColor: theme.card,
+                  },
+                ]}>
+                <Text style={styles.cardTitle}>{drop.title}</Text>
                 {!!drop.location_name && <Text>{drop.location_name}</Text>}
-                <Text style={{ opacity: 0.7 }}>
+                <Text style={[styles.subtle, { color: theme.muted }]}>
                   {formatTimeRange(drop.start_time, drop.end_time)}
                 </Text>
                 {distanceLabel ? (
-                  <Text style={{ opacity: 0.7, marginTop: 4 }}>{distanceLabel} away</Text>
+                  <Text style={[styles.subtle, { color: theme.muted, marginTop: 4 }]}>
+                    {distanceLabel} away
+                  </Text>
                 ) : null}
                 {isPast && isCheckedIn ? (
-                  <Text style={{ marginTop: 6, color: "#0a7ea4", fontWeight: "600" }}>
+                  <Text style={{ marginTop: 6, color: theme.accent, fontWeight: "600" }}>
                     You checked in
                   </Text>
                 ) : null}
@@ -325,3 +348,62 @@ export default function Home() {
     </AuthGate>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    gap: 12,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    fontFamily: Fonts.serif,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginTop: 8,
+    fontFamily: Fonts.rounded,
+  },
+  card: {
+    padding: 14,
+    borderWidth: 1,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    fontFamily: Fonts.rounded,
+  },
+  subtle: {
+    fontSize: 14,
+  },
+  pillRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  pill: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderRadius: 999,
+  },
+  pillOutline: {},
+  pillActive: {},
+  pillText: {
+    fontWeight: "600",
+    fontFamily: Fonts.rounded,
+  },
+  pillActiveText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontFamily: Fonts.rounded,
+  },
+});

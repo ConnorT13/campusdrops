@@ -1,9 +1,12 @@
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useState } from "react";
-import { Button, RefreshControl, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Button, RefreshControl, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { AuthGate } from "../../components/AuthGate";
 import { supabase } from "../../lib/supabase";
 import { router } from "expo-router";
+import { Colors, Fonts } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useCampusTheme } from "@/components/CampusThemeProvider";
 
 type Drop = {
   id: string;
@@ -33,8 +36,14 @@ type DropGroup = {
 };
 
 export default function Me() {
+  const colorScheme = useColorScheme();
+  const palette = Colors[colorScheme ?? "light"];
+  const { theme } = useCampusTheme();
+  const backgroundStyle =
+    { backgroundColor: colorScheme === "dark" ? theme.bgDark : theme.bg };
   const [savedDrops, setSavedDrops] = useState<Drop[]>([]);
   const [checkedInDrops, setCheckedInDrops] = useState<Drop[]>([]);
+  const [myDrops, setMyDrops] = useState<Drop[]>([]);
   const [status, setStatus] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -56,6 +65,7 @@ export default function Me() {
       { data: saves, error: savesError },
       { data: checkins, error: checkinsError },
       { data: profile, error: profileError },
+      { data: created, error: createdError },
     ] = await Promise.all([
       supabase
         .from("saves")
@@ -70,6 +80,11 @@ export default function Me() {
         .select("username")
         .eq("id", nextUserId)
         .maybeSingle(),
+      supabase
+        .from("drops")
+        .select("*")
+        .eq("created_by", nextUserId)
+        .order("start_time", { ascending: true }),
     ]);
 
     if (savesError) {
@@ -84,6 +99,10 @@ export default function Me() {
       setStatus("Load profile error: " + profileError.message);
       return;
     }
+    if (createdError) {
+      setStatus("Load created drops error: " + createdError.message);
+      return;
+    }
 
     const savedRows = (saves ?? []) as unknown as SaveRow[];
     const checkinRows = (checkins ?? []) as unknown as CheckinRow[];
@@ -95,14 +114,17 @@ export default function Me() {
 
     const saved = toDropList(savedRows);
     const checkedIn = toDropList(checkinRows);
+    const createdDrops = (created ?? []) as Drop[];
 
     saved.sort((a, b) => a.start_time.localeCompare(b.start_time));
     checkedIn.sort((a, b) => a.start_time.localeCompare(b.start_time));
+    createdDrops.sort((a, b) => a.start_time.localeCompare(b.start_time));
 
     setSavedDrops(saved);
     setCheckedInDrops(
       checkedIn
     );
+    setMyDrops(createdDrops);
     setUsername(profile?.username ?? "");
     setProfileLoaded(true);
     setStatus("");
@@ -230,17 +252,41 @@ export default function Me() {
     }));
   }
 
+  async function deleteDrop(dropId: string) {
+    if (!userId) {
+      setStatus("Auth error: not signed in");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("drops")
+      .delete()
+      .eq("id", dropId)
+      .eq("created_by", userId);
+
+    if (error) {
+      setStatus("Delete error: " + error.message);
+      return;
+    }
+
+    setMyDrops((prev) => prev.filter((d) => d.id !== dropId));
+  }
+
   function renderDrop(item: Drop, actions?: React.ReactNode) {
     return (
       <Pressable
         onPress={() => router.push(`/drop/${item.id}`)}
-        style={{ padding: 14, borderWidth: 1, borderRadius: 12, gap: 6 }}>
-        <Text style={{ fontSize: 18, fontWeight: "600" }}>{item.title}</Text>
+        style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }]}>
+        <Text style={styles.cardTitle}>{item.title}</Text>
         {!!item.location_name && <Text>{item.location_name}</Text>}
-        <Text style={{ opacity: 0.7 }}>{formatTimeRange(item.start_time, item.end_time)}</Text>
+        <Text style={[styles.subtle, { color: theme.muted }]}>
+          {formatTimeRange(item.start_time, item.end_time)}
+        </Text>
         {!!item.description && <Text style={{ marginTop: 6 }}>{item.description}</Text>}
         {item.tags?.length ? (
-          <Text style={{ marginTop: 6, opacity: 0.7 }}>Tags: {item.tags.join(", ")}</Text>
+          <Text style={[styles.subtle, { marginTop: 6, color: theme.muted }]}>
+            Tags: {item.tags.join(", ")}
+          </Text>
         ) : null}
         {actions}
       </Pressable>
@@ -250,7 +296,7 @@ export default function Me() {
   function renderGroup(group: DropGroup, renderItem: (item: Drop) => React.ReactNode) {
     return (
       <View key={group.label} style={{ gap: 10 }}>
-        <Text style={{ fontSize: 16, fontWeight: "600", opacity: 0.8 }}>{group.label}</Text>
+        <Text style={styles.groupLabel}>{group.label}</Text>
         {group.items.map((item) => (
           <View key={item.id} style={{ marginTop: 12 }}>
             {renderItem(item)}
@@ -263,26 +309,48 @@ export default function Me() {
   return (
     <AuthGate>
       <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, gap: 16 }}
+        style={[styles.container, backgroundStyle]}
+        contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-        <Text style={{ fontSize: 28, fontWeight: "700" }}>My Stuff</Text>
+        <Text style={[styles.title, { color: palette.text }]}>My Stuff</Text>
         {!!status && <Text>{status}</Text>}
 
-        <View style={{ padding: 14, borderWidth: 1, borderRadius: 12, gap: 10 }}>
-          <Text style={{ fontSize: 20, fontWeight: "600" }}>Profile</Text>
+        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }]}>
+          <Text style={styles.sectionTitle}>Profile</Text>
           <TextInput
             placeholder="username (unique)"
             autoCapitalize="none"
             value={username}
             onChangeText={setUsername}
-            style={{ borderWidth: 1, padding: 10, borderRadius: 10 }}
+            style={[styles.input, { borderColor: theme.border, backgroundColor: theme.cardAlt }]}
           />
           <Button title="Update username" onPress={updateUsername} disabled={!profileLoaded} />
         </View>
 
-        <View style={{ gap: 10 }}>
-          <Text style={{ fontSize: 20, fontWeight: "600" }}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            Created by me ({myDrops.length})
+          </Text>
+          {myDrops.length === 0 ? (
+            <Text style={{ opacity: 0.7, marginTop: 6 }}>No drops created yet.</Text>
+          ) : (
+            groupByDate(myDrops).map((group) =>
+              renderGroup(group, (item) =>
+                renderDrop(
+                  item,
+                  <Text
+                    onPress={() => deleteDrop(item.id)}
+                    style={{ marginTop: 8, color: theme.accentWarm, fontWeight: "600" }}>
+                    Delete
+                  </Text>
+                )
+              )
+            )
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
             Saved ({savedDrops.length})
           </Text>
           {savedDrops.length === 0 ? (
@@ -294,7 +362,7 @@ export default function Me() {
                   item,
                   <Text
                     onPress={() => removeSave(item.id)}
-                    style={{ marginTop: 8, color: "#0a7ea4", fontWeight: "600" }}>
+                    style={{ marginTop: 8, color: theme.accent, fontWeight: "600" }}>
                     Remove save
                   </Text>
                 )
@@ -303,8 +371,8 @@ export default function Me() {
           )}
         </View>
 
-        <View style={{ gap: 10 }}>
-          <Text style={{ fontSize: 20, fontWeight: "600" }}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
             Checked in ({checkedInDrops.length})
           </Text>
           {checkedInDrops.length === 0 ? (
@@ -316,7 +384,7 @@ export default function Me() {
                   item,
                   <Text
                     onPress={() => removeCheckin(item.id)}
-                    style={{ marginTop: 8, color: "#0a7ea4", fontWeight: "600" }}>
+                    style={{ marginTop: 8, color: theme.accent, fontWeight: "600" }}>
                     Remove check-in
                   </Text>
                 )
@@ -328,3 +396,57 @@ export default function Me() {
     </AuthGate>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    padding: 16,
+    gap: 16,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    fontFamily: Fonts.serif,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    fontFamily: Fonts.rounded,
+  },
+  section: {
+    gap: 10,
+  },
+  card: {
+    padding: 14,
+    borderWidth: 1,
+    borderRadius: 20,
+    gap: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  input: {
+    borderWidth: 1,
+    padding: 10,
+    borderRadius: 12,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    fontFamily: Fonts.rounded,
+  },
+  subtle: {
+    opacity: 0.7,
+  },
+  groupLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    opacity: 0.8,
+    fontFamily: Fonts.rounded,
+  },
+});
